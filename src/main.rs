@@ -14,16 +14,17 @@ struct BitterBoundaries {
     view: Rectangle,
     resolution_width: f32,
     resolution_height: f32,
-    sand_sprite: Asset<Image>,
-    hill_sprite: Asset<Image>,
-    mountain_sprite: Asset<Image>,
-    water_sprite: Asset<Image>,
-    // industrial_sprites: Vec<Asset<Image>>,
+    red_sprite: Asset<Image>,
+    blue_sprite: Asset<Image>,
+    settlement_sprites: Vec<Asset<Image>>,
     sound: Asset<Sound>,
     position: Vec<Vec<Vector>>,
     mouse_click_areas: Vec<Vec<Rectangle>>,
-    tile_type: Vec<Vec<i32>>,
+    tile_type: Vec<Vec<bool>>,
     tile_improvement_level: Vec<Vec<i32>>,
+    tile_population: Vec<Vec<i32>>,
+    players_cash: Vec<i32>,
+    currentPlayer: i32,
 }
 
 const BUTTON_AREA: Rectangle = Rectangle {
@@ -33,18 +34,19 @@ const BUTTON_AREA: Rectangle = Rectangle {
 
 impl State for BitterBoundaries {
     fn new() -> Result<BitterBoundaries> {
-        let sand_sprite = Asset::new(Image::load("sprites/terrains/sand.png"));
-        let hill_sprite = Asset::new(Image::load("sprites/terrains/hill.png"));
-        let mountain_sprite = Asset::new(Image::load("sprites/terrains/mountain.png"));
-        let water_sprite = Asset::new(Image::load("sprites/terrains/water.png"));
-        /* let mut industrial_sprites = Vec::new();
+        let red_sprite = Asset::new(Image::load("sprites/terrains/red.png"));
+        let blue_sprite = Asset::new(Image::load("sprites/terrains/blue.png"));
+        let mut currentPlayer = 0;
+        let mut settlement_sprites = Vec::new();
+        let mut players_cash = Vec::new();
         for i in 0..6 {
-            let mut industrial_sprite_path: String =
-                "sprites/industrial/industrial_level".to_string();
-            industrial_sprite_path.push_str(&(i.to_string()));
-            industrial_sprite_path.push_str(".png");
-            industrial_sprites.push(Asset::new(Image::load(industrial_sprite_path)));
-        } */
+            let mut settlement_sprite_path: String = "sprites/settlements/level_".to_string();
+            settlement_sprite_path.push_str(&(i.to_string()));
+            settlement_sprite_path.push_str(".png");
+            println!("{}", settlement_sprite_path);
+            settlement_sprites.push(Asset::new(Image::load(settlement_sprite_path)));
+            players_cash.push(0);
+        }
 
         let sound = Asset::new(Sound::load("sounds/test_sound.ogg"));
 
@@ -52,19 +54,25 @@ impl State for BitterBoundaries {
         let mut mouse_click_areas = Vec::new();
         let mut tile_type = Vec::new();
         let mut tile_improvement_level = Vec::new();
+        let mut tile_population = Vec::new();
+
         for i in 0..32 {
             position.push(Vec::new());
             mouse_click_areas.push(Vec::new());
+
             tile_type.push(Vec::new());
             tile_improvement_level.push(Vec::new());
+            tile_population.push(Vec::new());
+
             for j in 0..16 {
-                position[i].push(Vector::new(i as i32 * 60, j as i32 * 60));
+                position[i].push(Vector::new(i as i32 * 64, j as i32 * 64));
                 mouse_click_areas[i].push(Rectangle::new(
                     Vector::new(position[i][j].x as i32, position[i][j].y as i32),
-                    Vector::new(60, 60),
+                    Vector::new(64, 64),
                 ));
-                tile_type[i].push(0);
+                tile_type[i].push(false);
                 tile_improvement_level[i].push(-1);
+                tile_population[i].push(0);
             }
         }
 
@@ -72,19 +80,23 @@ impl State for BitterBoundaries {
             view: Rectangle::new_sized((400, 300)),
             resolution_width: 1920f32,
             resolution_height: 1080f32,
-            sand_sprite,
-            hill_sprite,
-            mountain_sprite,
-            water_sprite,
+            red_sprite,
+            blue_sprite,
+            settlement_sprites,
             sound,
             position,
             mouse_click_areas,
             tile_type,
             tile_improvement_level,
+            tile_population,
+            players_cash,
+            currentPlayer,
         })
     }
 
     fn update(&mut self, window: &mut Window) -> Result<()> {
+        self.players_cash[0] += 1;
+
         if window.mouse()[MouseButton::Left] == ButtonState::Pressed
             && BUTTON_AREA.contains(window.mouse().pos())
         {
@@ -99,12 +111,18 @@ impl State for BitterBoundaries {
                 if window.mouse()[MouseButton::Right] == ButtonState::Pressed
                     && self.mouse_click_areas[i][j].contains(window.mouse().pos())
                 {
-                    self.tile_type[i][j] += 1;
+                    self.tile_type[i][j] = !self.tile_type[i][j];
                 }
                 if window.mouse()[MouseButton::Left] == ButtonState::Pressed
                     && self.mouse_click_areas[i][j].contains(window.mouse().pos())
                 {
-                    self.tile_improvement_level[i][j] += 1;
+                    if self.players_cash[0] >= 1000 {
+                        self.players_cash[0] -= 1000;
+                        self.tile_population[i][j] += 500;
+                        println!("population: {}", self.tile_population[i][j]);
+                        self.tile_improvement_level[i][j] +=
+                            get_level_of_settlement(self.tile_population[i][j]);
+                    }
                 }
             }
         }
@@ -147,8 +165,8 @@ impl State for BitterBoundaries {
             for j in 0..16 {
                 let new_x = self.position[i][j].x;
                 let new_y = self.position[i][j].y;
-                match self.tile_type[i][j] {
-                    0 => self.sand_sprite.execute(|image| {
+                if self.tile_type[i][j] {
+                    self.red_sprite.execute(|image| {
                         window.draw(
                             &image
                                 .area()
@@ -156,8 +174,9 @@ impl State for BitterBoundaries {
                             Img(&image),
                         );
                         Ok(())
-                    })?,
-                    1 => self.hill_sprite.execute(|image| {
+                    })?
+                } else {
+                    self.blue_sprite.execute(|image| {
                         window.draw(
                             &image
                                 .area()
@@ -165,29 +184,10 @@ impl State for BitterBoundaries {
                             Img(&image),
                         );
                         Ok(())
-                    })?,
-                    2 => self.mountain_sprite.execute(|image| {
-                        window.draw(
-                            &image
-                                .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    3 => self.water_sprite.execute(|image| {
-                        window.draw(
-                            &image
-                                .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    _ => println!("Unsupported tile type at {} - {}.", i, j),
+                    })?
                 }
-                /* match self.tile_improvement_level[i][j] {
-                    0 => self.industrial_sprites[0].execute(|image| {
+                match self.tile_improvement_level[i][j] {
+                    0 => self.settlement_sprites[0].execute(|image| {
                         window.draw(
                             &image
                                 .area()
@@ -196,7 +196,7 @@ impl State for BitterBoundaries {
                         );
                         Ok(())
                     })?,
-                    1 => self.industrial_sprites[1].execute(|image| {
+                    1 => self.settlement_sprites[1].execute(|image| {
                         window.draw(
                             &image
                                 .area()
@@ -205,7 +205,7 @@ impl State for BitterBoundaries {
                         );
                         Ok(())
                     })?,
-                    2 => self.industrial_sprites[2].execute(|image| {
+                    2 => self.settlement_sprites[2].execute(|image| {
                         window.draw(
                             &image
                                 .area()
@@ -214,7 +214,7 @@ impl State for BitterBoundaries {
                         );
                         Ok(())
                     })?,
-                    3 => self.industrial_sprites[3].execute(|image| {
+                    3 => self.settlement_sprites[3].execute(|image| {
                         window.draw(
                             &image
                                 .area()
@@ -223,7 +223,7 @@ impl State for BitterBoundaries {
                         );
                         Ok(())
                     })?,
-                    4 => self.industrial_sprites[4].execute(|image| {
+                    4 => self.settlement_sprites[4].execute(|image| {
                         window.draw(
                             &image
                                 .area()
@@ -232,7 +232,7 @@ impl State for BitterBoundaries {
                         );
                         Ok(())
                     })?,
-                    5 => self.industrial_sprites[5].execute(|image| {
+                    5 => self.settlement_sprites[5].execute(|image| {
                         window.draw(
                             &image
                                 .area()
@@ -241,8 +241,17 @@ impl State for BitterBoundaries {
                         );
                         Ok(())
                     })?,
-                    _ => println!("Unsupported tile improvement level at {} - {}", i, j),
-                } */
+                    _ => self.settlement_sprites[5].execute(|image| {
+                        window.draw(
+                            &image
+                                .area()
+                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                            Img(&image),
+                        );
+                        Ok(())
+                    })?,
+                    // _ => println!("Unsupported tile improvement level at {} - {}", i, j),
+                }
             }
         }
         Ok(())
@@ -279,12 +288,42 @@ fn get_type_of_settlement(number_of_population: i32) -> String {
     }
 }
 
+fn get_level_of_settlement(number_of_population: i32) -> i32 {
+    if number_of_population > 10000000 {
+        return 12;
+    } else if number_of_population > 1000000 {
+        return 11;
+    } else if number_of_population > 500000 {
+        return 10;
+    } else if number_of_population > 100000 {
+        return 9;
+    } else if number_of_population > 50000 {
+        return 8;
+    } else if number_of_population > 20000 {
+        return 7;
+    } else if number_of_population > 10000 {
+        return 6;
+    } else if number_of_population > 5000 {
+        return 5;
+    } else if number_of_population > 2000 {
+        return 4;
+    } else if number_of_population > 1000 {
+        return 3;
+    } else if number_of_population > 500 {
+        return 2;
+    } else if number_of_population > 100 {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 fn main() {
     run::<BitterBoundaries>(
         "Bitter Boundaries",
         Vector::new(1920, 1080),
         Settings {
-            // icon_path: Some("sprites/wall/wall_level5.png"),
+            icon_path: Some("sprites/settlements/level_5.png"),
             ..Settings::default()
         },
     );
