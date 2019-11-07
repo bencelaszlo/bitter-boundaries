@@ -10,6 +10,9 @@ use quicksilver::{
     Result,
 };
 
+const GAME_AREA_WIDTH: usize = 8;
+const GAME_AREA_HEIGHT: usize = 4;
+
 struct BitterBoundaries {
     view: Rectangle,
     resolution_width: f32,
@@ -24,7 +27,7 @@ struct BitterBoundaries {
     tile_improvement_level: Vec<Vec<i32>>,
     tile_population: Vec<Vec<i32>>,
     players_cash: Vec<i32>,
-    currentPlayer: i32,
+    current_player: i32,
 }
 
 const BUTTON_AREA: Rectangle = Rectangle {
@@ -36,7 +39,7 @@ impl State for BitterBoundaries {
     fn new() -> Result<BitterBoundaries> {
         let red_sprite = Asset::new(Image::load("sprites/terrains/red.png"));
         let blue_sprite = Asset::new(Image::load("sprites/terrains/blue.png"));
-        let mut currentPlayer = 0;
+        let mut current_player = 0;
         let mut settlement_sprites = Vec::new();
         let mut players_cash = Vec::new();
         for i in 0..6 {
@@ -56,7 +59,7 @@ impl State for BitterBoundaries {
         let mut tile_improvement_level = Vec::new();
         let mut tile_population = Vec::new();
 
-        for i in 0..32 {
+        for i in 0..GAME_AREA_WIDTH {
             position.push(Vec::new());
             mouse_click_areas.push(Vec::new());
 
@@ -64,7 +67,7 @@ impl State for BitterBoundaries {
             tile_improvement_level.push(Vec::new());
             tile_population.push(Vec::new());
 
-            for j in 0..16 {
+            for j in 0..GAME_AREA_HEIGHT {
                 position[i].push(Vector::new(i as i32 * 64, j as i32 * 64));
                 mouse_click_areas[i].push(Rectangle::new(
                     Vector::new(position[i][j].x as i32, position[i][j].y as i32),
@@ -77,7 +80,7 @@ impl State for BitterBoundaries {
         }
 
         Ok(BitterBoundaries {
-            view: Rectangle::new_sized((400, 300)),
+            view: Rectangle::new_sized((800, 600)),
             resolution_width: 1920f32,
             resolution_height: 1080f32,
             red_sprite,
@@ -90,24 +93,24 @@ impl State for BitterBoundaries {
             tile_improvement_level,
             tile_population,
             players_cash,
-            currentPlayer,
+            current_player,
         })
     }
 
     fn update(&mut self, window: &mut Window) -> Result<()> {
-        self.players_cash[0] += 1;
+        self.players_cash[0] += 50;
 
-        if window.mouse()[MouseButton::Left] == ButtonState::Pressed
+        /* if window.mouse()[MouseButton::Left] == ButtonState::Pressed
             && BUTTON_AREA.contains(window.mouse().pos())
         {
             self.sound.execute(|sound| {
                 sound.play()?;
                 Ok(())
             })?;
-        }
+        } */
 
-        for i in 0..32 {
-            for j in 0..16 {
+        for i in 0..GAME_AREA_WIDTH {
+            for j in 0..GAME_AREA_HEIGHT {
                 if window.mouse()[MouseButton::Right] == ButtonState::Pressed
                     && self.mouse_click_areas[i][j].contains(window.mouse().pos())
                 {
@@ -118,9 +121,8 @@ impl State for BitterBoundaries {
                 {
                     if self.players_cash[0] >= 1000 {
                         self.players_cash[0] -= 1000;
-                        self.tile_population[i][j] += 500;
-                        println!("population: {}", self.tile_population[i][j]);
-                        self.tile_improvement_level[i][j] +=
+                        self.tile_population[i][j] += 100;
+                        self.tile_improvement_level[i][j] =
                             get_level_of_settlement(self.tile_population[i][j]);
                     }
                 }
@@ -161,8 +163,8 @@ impl State for BitterBoundaries {
             Ok(())
         })?;
 
-        for i in 0..32 {
-            for j in 0..16 {
+        for i in 0..GAME_AREA_WIDTH {
+            for j in 0..GAME_AREA_HEIGHT {
                 let new_x = self.position[i][j].x;
                 let new_y = self.position[i][j].y;
                 if self.tile_type[i][j] {
@@ -170,7 +172,7 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
@@ -180,7 +182,7 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
@@ -191,7 +193,7 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
@@ -200,7 +202,7 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
@@ -209,7 +211,7 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
@@ -218,7 +220,7 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
@@ -227,7 +229,7 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
@@ -236,7 +238,7 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
@@ -245,12 +247,11 @@ impl State for BitterBoundaries {
                         window.draw(
                             &image
                                 .area()
-                                .with_center((30 + new_x as i32, 30 + new_y as i32)),
+                                .with_center((32 + new_x as i32, 32 + new_y as i32)),
                             Img(&image),
                         );
                         Ok(())
                     })?,
-                    // _ => println!("Unsupported tile improvement level at {} - {}", i, j),
                 }
             }
         }
@@ -289,6 +290,7 @@ fn get_type_of_settlement(number_of_population: i32) -> String {
 }
 
 fn get_level_of_settlement(number_of_population: i32) -> i32 {
+    println!("population fn: {}", number_of_population);
     if number_of_population > 10000000 {
         return 12;
     } else if number_of_population > 1000000 {
