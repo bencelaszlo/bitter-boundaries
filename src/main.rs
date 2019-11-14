@@ -10,7 +10,7 @@ use rand::Rng;
 use quicksilver::{
     combinators::result,
     geom::{Rectangle, Shape, Vector},
-    graphics::{Background::Col, Background::Img, Color, Font, FontStyle, Image, View},
+    graphics::{Background::Img, Color, Font, FontStyle, Image, View},
     input::{ButtonState, Key, MouseButton},
     lifecycle::{run, Asset, Settings, State, Window},
     Future,
