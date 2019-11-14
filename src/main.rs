@@ -34,7 +34,7 @@ struct BitterBoundaries {
     mouse_click_areas: Vec<Vec<Rectangle>>,
     tile_owned_by: Vec<Vec<i32>>,
     tile_improvement_level: Vec<Vec<i32>>,
-    tile_population: Vec<Vec<i32>>,
+    tile_population_number: Vec<Vec<i32>>,
     players_cash: Vec<i32>,
 }
 
@@ -64,7 +64,7 @@ impl State for BitterBoundaries {
         let mut mouse_click_areas = Vec::new();
         let mut tile_owned_by = Vec::new();
         let mut tile_improvement_level = Vec::new();
-        let mut tile_population = Vec::new();
+        let mut tile_population_number = Vec::new();
 
         for i in 0..GAME_AREA_WIDTH {
             position.push(Vec::new());
@@ -72,7 +72,7 @@ impl State for BitterBoundaries {
 
             tile_owned_by.push(Vec::new());
             tile_improvement_level.push(Vec::new());
-            tile_population.push(Vec::new());
+            tile_population_number.push(Vec::new());
 
             for j in 0..GAME_AREA_HEIGHT {
                 position[i].push(Vector::new(i as i32 * TILE_SIZE, j as i32 * TILE_SIZE));
@@ -86,7 +86,7 @@ impl State for BitterBoundaries {
                     tile_owned_by[i].push(1);
                 }
                 tile_improvement_level[i].push(-1);
-                tile_population[i].push(0);
+                tile_population_number[i].push(0);
             }
         }
 
@@ -102,7 +102,7 @@ impl State for BitterBoundaries {
             mouse_click_areas,
             tile_owned_by,
             tile_improvement_level,
-            tile_population,
+            tile_population_number,
             players_cash,
         })
     }
@@ -134,26 +134,27 @@ impl State for BitterBoundaries {
                     if self.tile_owned_by[i][j] == 0 {
                         if self.players_cash[0] >= 1000 {
                             self.players_cash[0] -= 1000;
-                            self.tile_population[i][j] += 100;
+                            self.tile_population_number[i][j] += 100;
                             self.tile_improvement_level[i][j] =
                                 population_utility::get_level_of_settlement(
-                                    self.tile_population[i][j],
+                                    self.tile_population_number[i][j],
                                 );
                         }
                     } else {
                         let closest_settlement = tile_utility::closest_player_settlement(
-                            &self.tile_population,
+                            &self.tile_population_number,
                             i as i32,
                             j as i32,
                             GAME_AREA_WIDTH,
                             GAME_AREA_HEIGHT,
                         );
-                        if self.tile_population[i][j] > 100 {
-                            self.tile_population[i][j] -= 100;
-                            self.tile_population[closest_settlement.x][closest_settlement.y] -= 100;
+                        if self.tile_population_number[i][j] > 100 {
+                            self.tile_population_number[i][j] -= 100;
+                            self.tile_population_number[closest_settlement.x]
+                                [closest_settlement.y] -= 100;
                             self.tile_improvement_level[i][j] =
                                 population_utility::get_level_of_settlement(
-                                    self.tile_population[i][j],
+                                    self.tile_population_number[i][j],
                                 );
                         } else {
                             self.tile_owned_by[i][j] = 0;
@@ -168,10 +169,10 @@ impl State for BitterBoundaries {
         let random_column: usize = rng.gen_range(0, GAME_AREA_WIDTH);
         if self.players_cash[1] >= 1000 {
             self.players_cash[1] -= 1000;
-            self.tile_population[random_column][random_row] += 100;
+            self.tile_population_number[random_column][random_row] += 100;
             self.tile_improvement_level[random_column][random_row] =
                 population_utility::get_level_of_settlement(
-                    self.tile_population[random_column][random_row],
+                    self.tile_population_number[random_column][random_row],
                 );
         }
 
@@ -205,20 +206,43 @@ impl State for BitterBoundaries {
 
         for i in 0..GAME_AREA_WIDTH {
             for j in 0..GAME_AREA_HEIGHT {
-                let text = String::from(self.tile_population[i][j].to_string());
+                let population_number_string: String =
+                    String::from(self.tile_population_number[i][j].to_string());
+                let settlement_type: String =
+                    population_utility::get_type_of_settlement(self.tile_population_number[i][j]);
 
-                let mut asd_text: Asset<Image> = Asset::new(
+                // let style = FontStyle::new(12.0, Color::WHITE);
+
+                let mut population_number_text: Asset<Image> = Asset::new(
                     Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
                         let style = FontStyle::new(12.0, Color::WHITE);
-                        result(font.render(&text, &style))
+                        result(font.render(&population_number_string, &style))
                     }),
                 );
 
-                asd_text.execute(|image| {
+                let mut settlement_type_text: Asset<Image> = Asset::new(
+                    Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
+                        let style = FontStyle::new(9.0, Color::BLACK);
+                        result(font.render(&settlement_type, &style))
+                    }),
+                );
+
+                population_number_text.execute(|image| {
                     window.draw(
                         &image.area().with_center((
                             i as i32 * TILE_SIZE + TILE_SIZE / 2,
                             j as i32 * TILE_SIZE + 6,
+                        )),
+                        Img(&image),
+                    );
+                    Ok(())
+                })?;
+
+                settlement_type_text.execute(|image| {
+                    window.draw(
+                        &image.area().with_center((
+                            i as i32 * TILE_SIZE + TILE_SIZE / 2,
+                            j as i32 * TILE_SIZE + 18,
                         )),
                         Img(&image),
                     );
