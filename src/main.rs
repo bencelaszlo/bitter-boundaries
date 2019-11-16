@@ -20,7 +20,13 @@ use quicksilver::{
 
 pub const GAME_AREA_WIDTH: usize = 8;
 pub const GAME_AREA_HEIGHT: usize = 4;
-pub const TILE_SIZE: i32 = 64;
+pub const TILE_SIZE: i32 = 128;
+
+const RESOLUTION_WIDTH: f32 = 1920f32;
+const RESOLUTION_HEIGHT: f32 = 1080f32;
+
+const SETTLEMENT_NUMBER_OF_LEVELS: usize = 13;
+const SETTLEMENT_TEXTURE_FORMAT: &str = ".png";
 
 struct BitterBoundaries {
     view: Rectangle,
@@ -49,13 +55,13 @@ impl State for BitterBoundaries {
         let blue_sprite = Asset::new(Image::load("sprites/terrains/blue.png"));
         let mut settlement_sprites = Vec::new();
         let mut players_cash = Vec::new();
-        for i in 0..6 {
+        players_cash.push(0);
+        players_cash.push(0);
+        for i in 0..SETTLEMENT_NUMBER_OF_LEVELS {
             let mut settlement_sprite_path: String = "sprites/settlements/level_".to_string();
             settlement_sprite_path.push_str(&(i.to_string()));
-            settlement_sprite_path.push_str(".png");
-            println!("{}", settlement_sprite_path);
+            settlement_sprite_path.push_str(SETTLEMENT_TEXTURE_FORMAT);
             settlement_sprites.push(Asset::new(Image::load(settlement_sprite_path)));
-            players_cash.push(0);
         }
 
         // let sound = Asset::new(Sound::load("sounds/test_sound.ogg"));
@@ -91,9 +97,9 @@ impl State for BitterBoundaries {
         }
 
         Ok(BitterBoundaries {
-            view: Rectangle::new_sized((600, 450)),
-            resolution_width: 1920f32,
-            resolution_height: 1080f32,
+            view: Rectangle::new_sized((1440, 810)),
+            resolution_width: RESOLUTION_WIDTH,
+            resolution_height: RESOLUTION_HEIGHT,
             red_sprite,
             blue_sprite,
             settlement_sprites,
@@ -204,6 +210,9 @@ impl State for BitterBoundaries {
     fn draw(&mut self, window: &mut Window) -> Result<()> {
         window.clear(Color::BLACK)?;
 
+        let fontstyle_black_9: FontStyle = FontStyle::new(9.0, Color::BLACK);
+        let fontstyle_white_12: FontStyle = FontStyle::new(12.0, Color::WHITE);
+
         for i in 0..GAME_AREA_WIDTH {
             for j in 0..GAME_AREA_HEIGHT {
                 let population_number_string: String =
@@ -211,19 +220,15 @@ impl State for BitterBoundaries {
                 let settlement_type: String =
                     population_utility::get_type_of_settlement(self.tile_population_number[i][j]);
 
-                // let style = FontStyle::new(12.0, Color::WHITE);
-
                 let mut population_number_text: Asset<Image> = Asset::new(
                     Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
-                        let style = FontStyle::new(12.0, Color::WHITE);
-                        result(font.render(&population_number_string, &style))
+                        result(font.render(&population_number_string, &fontstyle_white_12))
                     }),
                 );
 
                 let mut settlement_type_text: Asset<Image> = Asset::new(
                     Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
-                        let style = FontStyle::new(9.0, Color::BLACK);
-                        result(font.render(&settlement_type, &style))
+                        result(font.render(&settlement_type, &fontstyle_black_9))
                     }),
                 );
 
@@ -345,7 +350,67 @@ impl State for BitterBoundaries {
                         );
                         Ok(())
                     })?,
-                    _ => self.settlement_sprites[5].execute(|image| {
+                    6 => self.settlement_sprites[6].execute(|image| {
+                        window.draw(
+                            &image.area().with_center((
+                                TILE_SIZE / 2 + new_x as i32,
+                                TILE_SIZE / 2 + new_y as i32,
+                            )),
+                            Img(&image),
+                        );
+                        Ok(())
+                    })?,
+                    7 => self.settlement_sprites[7].execute(|image| {
+                        window.draw(
+                            &image.area().with_center((
+                                TILE_SIZE / 2 + new_x as i32,
+                                TILE_SIZE / 2 + new_y as i32,
+                            )),
+                            Img(&image),
+                        );
+                        Ok(())
+                    })?,
+                    8 => self.settlement_sprites[8].execute(|image| {
+                        window.draw(
+                            &image.area().with_center((
+                                TILE_SIZE / 2 + new_x as i32,
+                                TILE_SIZE / 2 + new_y as i32,
+                            )),
+                            Img(&image),
+                        );
+                        Ok(())
+                    })?,
+                    9 => self.settlement_sprites[9].execute(|image| {
+                        window.draw(
+                            &image.area().with_center((
+                                TILE_SIZE / 2 + new_x as i32,
+                                TILE_SIZE / 2 + new_y as i32,
+                            )),
+                            Img(&image),
+                        );
+                        Ok(())
+                    })?,
+                    10 => self.settlement_sprites[10].execute(|image| {
+                        window.draw(
+                            &image.area().with_center((
+                                TILE_SIZE / 2 + new_x as i32,
+                                TILE_SIZE / 2 + new_y as i32,
+                            )),
+                            Img(&image),
+                        );
+                        Ok(())
+                    })?,
+                    11 => self.settlement_sprites[11].execute(|image| {
+                        window.draw(
+                            &image.area().with_center((
+                                TILE_SIZE / 2 + new_x as i32,
+                                TILE_SIZE / 2 + new_y as i32,
+                            )),
+                            Img(&image),
+                        );
+                        Ok(())
+                    })?,
+                    _ => self.settlement_sprites[12].execute(|image| {
                         window.draw(
                             &image.area().with_center((
                                 TILE_SIZE / 2 + new_x as i32,
@@ -369,7 +434,7 @@ fn main() {
         "Bitter Boundaries",
         Vector::new(1920, 1080),
         Settings {
-            icon_path: Some("sprites/settlements/level_5.png"),
+            icon_path: Some("sprites/settlements/level_12.png"),
             scale: quicksilver::graphics::ImageScaleStrategy::Blur,
             ..Settings::default()
         },
