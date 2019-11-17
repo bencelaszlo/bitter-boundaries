@@ -57,3 +57,21 @@ pub fn get_level_of_settlement(number_of_population: i32) -> i32 {
         return 0;
     }
 }
+
+pub fn get_total_population(
+    player: i32,
+    tile_population: &Vec<Vec<i32>>,
+    tile_owned_by: &Vec<Vec<i32>>,
+    game_area_width: usize,
+    game_area_height: usize,
+) -> i32 {
+    let mut total_population: i32 = 0;
+    for i in 0..game_area_width {
+        for j in 0..game_area_height {
+            if tile_owned_by[i][j] == player {
+                total_population += tile_population[i][j];
+            }
+        }
+    }
+    return total_population;
+}

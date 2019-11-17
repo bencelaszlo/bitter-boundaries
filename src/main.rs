@@ -111,8 +111,28 @@ impl State for BitterBoundaries {
     }
 
     fn update(&mut self, window: &mut Window) -> Result<()> {
-        self.players_cash[0] += 50;
-        self.players_cash[1] += 50;
+        self.players_cash[0] += 1 * population_utility::get_total_population(
+            0,
+            &self.tile_population_number,
+            &self.tile_owned_by,
+            GAME_AREA_WIDTH,
+            GAME_AREA_HEIGHT,
+        );
+        self.players_cash[1] += 1 * population_utility::get_total_population(
+            1,
+            &self.tile_population_number,
+            &self.tile_owned_by,
+            GAME_AREA_WIDTH,
+            GAME_AREA_HEIGHT,
+        );
+
+        if tile_utility::is_player_wins(&self.tile_owned_by, GAME_AREA_WIDTH, GAME_AREA_HEIGHT, 0) {
+            println!("player {} is the winner!", 0);
+        }
+
+        if tile_utility::is_player_wins(&self.tile_owned_by, GAME_AREA_WIDTH, GAME_AREA_HEIGHT, 1) {
+            println!("player {} is the winner!", 1);
+        }
 
         /* if window.mouse()[MouseButton::Left] == ButtonState::Pressed
             && BUTTON_AREA.contains(window.mouse().pos())

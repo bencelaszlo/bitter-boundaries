@@ -30,3 +30,20 @@ pub fn closest_player_settlement(
     }
     return closest_player_tile;
 }
+
+pub fn is_player_wins(
+    tile_owned_by: &Vec<Vec<i32>>,
+    game_area_width: usize,
+    game_area_height: usize,
+    player: i32,
+) -> bool {
+    let mut player_wins = true;
+    for i in 0..game_area_width {
+        for j in 0..game_area_height {
+            if tile_owned_by[i][j] != player {
+                player_wins = false;
+            }
+        }
+    }
+    return player_wins;
+}
