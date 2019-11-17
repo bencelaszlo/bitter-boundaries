@@ -10,9 +10,8 @@ use quicksilver::{
     graphics::{Background::Img, Color, Font, FontStyle, Image, View},
     input::{ButtonState, Key, MouseButton},
     lifecycle::{run, Asset, Settings, State, Window},
-    Future,
-    Result,
-    // sound::Sound,
+    sound::Sound,
+    Future, Result,
 };
 
 pub const GAME_AREA_WIDTH: usize = 8;
@@ -32,7 +31,9 @@ struct BitterBoundaries {
     red_sprite: Asset<Image>,
     blue_sprite: Asset<Image>,
     settlement_sprites: Vec<Asset<Image>>,
-    // sound: Asset<Sound>,
+    sound_click: Asset<Sound>,
+    sound_change: Asset<Sound>,
+    sound_unable: Asset<Sound>,
     position: Vec<Vec<Vector>>,
     mouse_click_areas: Vec<Vec<Rectangle>>,
     tile_owned_by: Vec<Vec<i32>>,
@@ -40,11 +41,6 @@ struct BitterBoundaries {
     tile_population_number: Vec<Vec<i32>>,
     players_cash: Vec<i32>,
 }
-
-/* const BUTTON_AREA: Rectangle = Rectangle {
-    pos: Vector { x: 350.0, y: 250.0 },
-    size: Vector { x: 100.0, y: 100.0 },
-}; */
 
 impl State for BitterBoundaries {
     fn new() -> Result<BitterBoundaries> {
@@ -61,7 +57,9 @@ impl State for BitterBoundaries {
             settlement_sprites.push(Asset::new(Image::load(settlement_sprite_path)));
         }
 
-        // let sound = Asset::new(Sound::load("sounds/test_sound.ogg"));
+        let sound_click = Asset::new(Sound::load("sounds/click.ogg"));
+        let sound_change = Asset::new(Sound::load("sounds/change.ogg"));
+        let sound_unable = Asset::new(Sound::load("sounds/unable.ogg"));
 
         let mut position = Vec::new();
         let mut mouse_click_areas = Vec::new();
@@ -94,13 +92,15 @@ impl State for BitterBoundaries {
         }
 
         Ok(BitterBoundaries {
+            sound_click,
+            sound_change,
+            sound_unable,
             view: Rectangle::new_sized((1440, 810)),
             resolution_width: RESOLUTION_WIDTH,
             resolution_height: RESOLUTION_HEIGHT,
             red_sprite,
             blue_sprite,
             settlement_sprites,
-            // sound,
             position,
             mouse_click_areas,
             tile_owned_by,
@@ -111,37 +111,25 @@ impl State for BitterBoundaries {
     }
 
     fn update(&mut self, window: &mut Window) -> Result<()> {
-        self.players_cash[0] += 1 * population_utility::get_total_population(
-            0,
-            &self.tile_population_number,
-            &self.tile_owned_by,
-            GAME_AREA_WIDTH,
-            GAME_AREA_HEIGHT,
-        );
-        self.players_cash[1] += 1 * population_utility::get_total_population(
-            1,
-            &self.tile_population_number,
-            &self.tile_owned_by,
-            GAME_AREA_WIDTH,
-            GAME_AREA_HEIGHT,
-        );
+        for i in 0..self.players_cash.len() {
+            self.players_cash[i] +=
+                population_utility::get_cash(population_utility::get_total_population(
+                    i as i32,
+                    &self.tile_population_number,
+                    &self.tile_owned_by,
+                    GAME_AREA_WIDTH,
+                    GAME_AREA_HEIGHT,
+                ));
 
-        if tile_utility::is_player_wins(&self.tile_owned_by, GAME_AREA_WIDTH, GAME_AREA_HEIGHT, 0) {
-            println!("player {} is the winner!", 0);
+            if tile_utility::is_player_wins(
+                &self.tile_owned_by,
+                GAME_AREA_WIDTH,
+                GAME_AREA_HEIGHT,
+                i as i32,
+            ) {
+                println!("player {} is the winner!", i);
+            }
         }
-
-        if tile_utility::is_player_wins(&self.tile_owned_by, GAME_AREA_WIDTH, GAME_AREA_HEIGHT, 1) {
-            println!("player {} is the winner!", 1);
-        }
-
-        /* if window.mouse()[MouseButton::Left] == ButtonState::Pressed
-            && BUTTON_AREA.contains(window.mouse().pos())
-        {
-            self.sound.execute(|sound| {
-                sound.play()?;
-                Ok(())
-            })?;
-        } */
 
         for i in 0..GAME_AREA_WIDTH {
             for j in 0..GAME_AREA_HEIGHT {
@@ -163,6 +151,15 @@ impl State for BitterBoundaries {
                                 population_utility::get_level_of_settlement(
                                     self.tile_population_number[i][j],
                                 );
+                            self.sound_click.execute(|sound| {
+                                sound.play()?;
+                                Ok(())
+                            })?;
+                        } else {
+                            self.sound_unable.execute(|sound| {
+                                sound.play()?;
+                                Ok(())
+                            })?;
                         }
                     } else {
                         let closest_settlement = tile_utility::closest_player_settlement(
@@ -186,6 +183,10 @@ impl State for BitterBoundaries {
                                 );
                         } else {
                             self.tile_owned_by[i][j] = 0;
+                            self.sound_change.execute(|sound| {
+                                sound.play()?;
+                                Ok(())
+                            })?;
                         }
                     }
                 }
