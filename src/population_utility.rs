@@ -29,7 +29,6 @@ pub fn get_type_of_settlement(number_of_population: i32) -> String {
 }
 
 pub fn get_level_of_settlement(number_of_population: i32) -> i32 {
-    println!("population fn: {}", number_of_population);
     if number_of_population > 10000000 {
         return 12;
     } else if number_of_population > 1000000 {
