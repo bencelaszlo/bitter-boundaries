@@ -3,9 +3,6 @@ mod tile_utility;
 
 extern crate image;
 extern crate quicksilver;
-extern crate rand;
-
-use rand::Rng;
 
 use quicksilver::{
     combinators::result,
@@ -91,8 +88,8 @@ impl State for BitterBoundaries {
                 } else {
                     tile_owned_by[i].push(1);
                 }
-                tile_improvement_level[i].push(-1);
-                tile_population_number[i].push(0);
+                tile_improvement_level[i].push(0);
+                tile_population_number[i].push(1);
             }
         }
 
@@ -138,9 +135,10 @@ impl State for BitterBoundaries {
                     && self.mouse_click_areas[i][j].contains(window.mouse().pos())
                 {
                     if self.tile_owned_by[i][j] == 0 {
-                        if self.players_cash[0] >= 1000 {
-                            self.players_cash[0] -= 1000;
-                            self.tile_population_number[i][j] += 100;
+                        if self.players_cash[0] >= 1000 * (self.tile_improvement_level[i][j] + 1) {
+                            self.players_cash[0] -= 1000 * (self.tile_improvement_level[i][j] + 1);
+                            self.tile_population_number[i][j] +=
+                                100 * (self.tile_improvement_level[i][j] + 1);
                             self.tile_improvement_level[i][j] =
                                 population_utility::get_level_of_settlement(
                                     self.tile_population_number[i][j],
@@ -154,10 +152,14 @@ impl State for BitterBoundaries {
                             GAME_AREA_WIDTH,
                             GAME_AREA_HEIGHT,
                         );
-                        if self.tile_population_number[i][j] > 100 {
-                            self.tile_population_number[i][j] -= 100;
+                        if self.tile_population_number[i][j]
+                            > 1000 * (self.tile_improvement_level[i][j] + 1)
+                        {
+                            self.tile_population_number[i][j] -=
+                                100 * (self.tile_improvement_level[i][j] + 1);
                             self.tile_population_number[closest_settlement.x]
-                                [closest_settlement.y] -= 100;
+                                [closest_settlement.y] -=
+                                100 * (self.tile_improvement_level[i][j] + 1);
                             self.tile_improvement_level[i][j] =
                                 population_utility::get_level_of_settlement(
                                     self.tile_population_number[i][j],
@@ -168,18 +170,6 @@ impl State for BitterBoundaries {
                     }
                 }
             }
-        }
-
-        let mut rng = rand::thread_rng();
-        let random_row: usize = rng.gen_range(GAME_AREA_HEIGHT / 2, GAME_AREA_HEIGHT);
-        let random_column: usize = rng.gen_range(0, GAME_AREA_WIDTH);
-        if self.players_cash[1] >= 1000 {
-            self.players_cash[1] -= 1000;
-            self.tile_population_number[random_column][random_row] += 100;
-            self.tile_improvement_level[random_column][random_row] =
-                population_utility::get_level_of_settlement(
-                    self.tile_population_number[random_column][random_row],
-                );
         }
 
         if window.keyboard()[Key::Left].is_down() {
@@ -256,11 +246,23 @@ impl State for BitterBoundaries {
             }
         }
 
-        // If the sound is loaded, draw the button
-        /* self.sound.execute(|_| {
-            window.draw(&BUTTON_AREA, Col(Color::BLUE));
+        let players_cash_string: String =
+            "Cash: ".to_string() + &(self.players_cash[0].to_string());
+        let mut players_cash_text: Asset<Image> = Asset::new(
+            Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
+                result(font.render(&players_cash_string, &fontstyle_white_12))
+            }),
+        );
+        players_cash_text.execute(|image| {
+            window.draw(
+                &image.area().with_center((
+                    GAME_AREA_WIDTH as i32 * TILE_SIZE + TILE_SIZE / 2,
+                    GAME_AREA_HEIGHT as i32 * TILE_SIZE + 18,
+                )),
+                Img(&image),
+            );
             Ok(())
-        })?; */
+        })?;
 
         for i in 0..GAME_AREA_WIDTH {
             for j in 0..GAME_AREA_HEIGHT {
