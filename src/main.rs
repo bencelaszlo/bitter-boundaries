@@ -3,6 +3,7 @@ mod tile_utility;
 
 extern crate image;
 extern crate quicksilver;
+extern crate rand;
 
 use quicksilver::{
     combinators::result,
@@ -13,6 +14,7 @@ use quicksilver::{
     sound::Sound,
     Future, Result,
 };
+use rand::Rng;
 
 pub const GAME_AREA_WIDTH: usize = 8;
 pub const GAME_AREA_HEIGHT: usize = 4;
@@ -28,8 +30,6 @@ struct BitterBoundaries {
     view: Rectangle,
     resolution_width: f32,
     resolution_height: f32,
-    red_sprite: Asset<Image>,
-    blue_sprite: Asset<Image>,
     settlement_sprites: Vec<Asset<Image>>,
     sound_click: Asset<Sound>,
     sound_change: Asset<Sound>,
@@ -40,16 +40,18 @@ struct BitterBoundaries {
     tile_improvement_level: Vec<Vec<i32>>,
     tile_population_number: Vec<Vec<i32>>,
     players_cash: Vec<i32>,
+    players_background_sprite: Vec<Asset<Image>>,
 }
 
 impl State for BitterBoundaries {
     fn new() -> Result<BitterBoundaries> {
-        let red_sprite = Asset::new(Image::load("sprites/terrains/red.png"));
-        let blue_sprite = Asset::new(Image::load("sprites/terrains/blue.png"));
         let mut settlement_sprites = Vec::new();
         let mut players_cash = Vec::new();
         players_cash.push(0);
         players_cash.push(0);
+        let mut players_background_sprite = Vec::new();
+        players_background_sprite.push(Asset::new(Image::load("sprites/terrains/red.png")));
+        players_background_sprite.push(Asset::new(Image::load("sprites/terrains/blue.png")));
         for i in 0..SETTLEMENT_NUMBER_OF_LEVELS {
             let mut settlement_sprite_path: String = "sprites/settlements/level_".to_string();
             settlement_sprite_path.push_str(&(i.to_string()));
@@ -98,8 +100,7 @@ impl State for BitterBoundaries {
             view: Rectangle::new_sized((1440, 810)),
             resolution_width: RESOLUTION_WIDTH,
             resolution_height: RESOLUTION_HEIGHT,
-            red_sprite,
-            blue_sprite,
+            players_background_sprite,
             settlement_sprites,
             position,
             mouse_click_areas,
@@ -182,13 +183,72 @@ impl State for BitterBoundaries {
                                     self.tile_population_number[i][j],
                                 );
                         } else {
-                            self.tile_owned_by[i][j] = 0;
-                            self.sound_change.execute(|sound| {
-                                sound.play()?;
-                                Ok(())
-                            })?;
+                            if self.players_cash[0] >= 10000 {
+                                self.players_cash[0] -= 10000;
+                                self.tile_owned_by[i][j] = 0;
+                                self.sound_change.execute(|sound| {
+                                    sound.play()?;
+                                    Ok(())
+                                })?;
+                            } else {
+                                self.sound_unable.execute(|sound| {
+                                    sound.play()?;
+                                    Ok(())
+                                })?;
+                            }
                         }
                     }
+                }
+            }
+        }
+
+        let mut rng = rand::thread_rng();
+        let random_row: usize = rng.gen_range(0, GAME_AREA_HEIGHT);
+        let random_column: usize = rng.gen_range(0, GAME_AREA_WIDTH);
+        if self.tile_owned_by[random_column][random_row] == 1 {
+            if self.players_cash[1]
+                >= 1000 * (self.tile_improvement_level[random_column][random_row] + 1)
+            {
+                self.players_cash[1] -=
+                    1000 * (self.tile_improvement_level[random_column][random_row] + 1);
+                self.tile_population_number[random_column][random_row] +=
+                    100 * (self.tile_improvement_level[random_column][random_row] + 1);
+                self.tile_improvement_level[random_column][random_row] =
+                    population_utility::get_level_of_settlement(
+                        self.tile_population_number[random_column][random_row],
+                    );
+                self.sound_click.execute(|sound| {
+                    sound.play()?;
+                    Ok(())
+                })?;
+            }
+        } else {
+            let closest_settlement = tile_utility::closest_player_settlement(
+                &self.tile_population_number,
+                random_column as i32,
+                random_row as i32,
+                GAME_AREA_WIDTH,
+                GAME_AREA_HEIGHT,
+            );
+            if self.tile_population_number[random_column][random_row]
+                > 1000 * (self.tile_improvement_level[random_column][random_row] + 1)
+            {
+                self.tile_population_number[random_column][random_row] -=
+                    100 * (self.tile_improvement_level[random_column][random_row] + 1);
+                self.tile_population_number[closest_settlement.x][closest_settlement.y] -=
+                    100 * (self.tile_improvement_level[random_column][random_row] + 1);
+                self.tile_improvement_level[random_column][random_row] =
+                    population_utility::get_level_of_settlement(
+                        self.tile_population_number[random_column][random_row],
+                    );
+            } else {
+                if self.players_cash[1] >= 10000 {
+                    self.players_cash[1] -= 10000;
+                    self.tile_owned_by[random_column][random_row] = 1;
+                    self.sound_change.execute(|sound| {
+                        sound.play()?;
+                        Ok(())
+                    })?;
                 }
             }
         }
@@ -221,8 +281,26 @@ impl State for BitterBoundaries {
     fn draw(&mut self, window: &mut Window) -> Result<()> {
         window.clear(Color::BLACK)?;
 
-        let fontstyle_black_9: FontStyle = FontStyle::new(9.0, Color::BLACK);
+        let fontstyle_white_9: FontStyle = FontStyle::new(9.0, Color::WHITE);
         let fontstyle_white_12: FontStyle = FontStyle::new(12.0, Color::WHITE);
+
+        let players_cash_string: String =
+            "Cash: ".to_string() + &(self.players_cash[0].to_string());
+        let mut players_cash_text: Asset<Image> = Asset::new(
+            Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
+                result(font.render(&players_cash_string, &fontstyle_white_12))
+            }),
+        );
+        players_cash_text.execute(|image| {
+            window.draw(
+                &image.area().with_center((
+                    GAME_AREA_WIDTH as i32 * TILE_SIZE + TILE_SIZE / 2,
+                    GAME_AREA_HEIGHT as i32 * TILE_SIZE + 18,
+                )),
+                Img(&image),
+            );
+            Ok(())
+        })?;
 
         for i in 0..GAME_AREA_WIDTH {
             for j in 0..GAME_AREA_HEIGHT {
@@ -239,7 +317,7 @@ impl State for BitterBoundaries {
 
                 let mut settlement_type_text: Asset<Image> = Asset::new(
                     Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
-                        result(font.render(&settlement_type, &fontstyle_black_9))
+                        result(font.render(&settlement_type, &fontstyle_white_9))
                     }),
                 );
 
@@ -264,186 +342,40 @@ impl State for BitterBoundaries {
                     );
                     Ok(())
                 })?;
+
+                let new_x: i32 = self.position[i][j].x as i32;
+                let new_y: i32 = self.position[i][j].y as i32;
+
+                self.players_background_sprite[self.tile_owned_by[i][j] as usize].execute(
+                    |image| {
+                        window.draw(
+                            &image
+                                .area()
+                                .with_center((TILE_SIZE / 2 + new_x, TILE_SIZE / 2 + new_y)),
+                            Img(&image),
+                        );
+                        Ok(())
+                    },
+                )?;
             }
         }
 
-        let players_cash_string: String =
-            "Cash: ".to_string() + &(self.players_cash[0].to_string());
-        let mut players_cash_text: Asset<Image> = Asset::new(
-            Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
-                result(font.render(&players_cash_string, &fontstyle_white_12))
-            }),
-        );
-        players_cash_text.execute(|image| {
-            window.draw(
-                &image.area().with_center((
-                    GAME_AREA_WIDTH as i32 * TILE_SIZE + TILE_SIZE / 2,
-                    GAME_AREA_HEIGHT as i32 * TILE_SIZE + 18,
-                )),
-                Img(&image),
-            );
-            Ok(())
-        })?;
-
         for i in 0..GAME_AREA_WIDTH {
             for j in 0..GAME_AREA_HEIGHT {
-                let new_x = self.position[i][j].x;
-                let new_y = self.position[i][j].y;
-                if self.tile_owned_by[i][j] == 0 {
-                    self.red_sprite.execute(|image| {
+                let new_x: i32 = self.position[i][j].x as i32;
+                let new_y: i32 = self.position[i][j].y as i32;
+
+                self.settlement_sprites[self.tile_improvement_level[i][j] as usize].execute(
+                    |image| {
                         window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
+                            &image
+                                .area()
+                                .with_center((TILE_SIZE / 2 + new_x, TILE_SIZE / 2 + new_y)),
                             Img(&image),
                         );
                         Ok(())
-                    })?
-                } else {
-                    self.blue_sprite.execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?
-                }
-                match self.tile_improvement_level[i][j] {
-                    0 => self.settlement_sprites[0].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    1 => self.settlement_sprites[1].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    2 => self.settlement_sprites[2].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    3 => self.settlement_sprites[3].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    4 => self.settlement_sprites[4].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    5 => self.settlement_sprites[5].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    6 => self.settlement_sprites[6].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    7 => self.settlement_sprites[7].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    8 => self.settlement_sprites[8].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    9 => self.settlement_sprites[9].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    10 => self.settlement_sprites[10].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    11 => self.settlement_sprites[11].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                    _ => self.settlement_sprites[12].execute(|image| {
-                        window.draw(
-                            &image.area().with_center((
-                                TILE_SIZE / 2 + new_x as i32,
-                                TILE_SIZE / 2 + new_y as i32,
-                            )),
-                            Img(&image),
-                        );
-                        Ok(())
-                    })?,
-                }
+                    },
+                )?;
             }
         }
 
@@ -457,8 +389,10 @@ fn main() {
         "Bitter Boundaries",
         Vector::new(1920, 1080),
         Settings {
+            draw_rate: 16.67,
             icon_path: Some("sprites/settlements/level_12.png"),
             scale: quicksilver::graphics::ImageScaleStrategy::Blur,
+            vsync: false,
             ..Settings::default()
         },
     );
