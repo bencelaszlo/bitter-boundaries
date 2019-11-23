@@ -26,6 +26,8 @@ const RESOLUTION_HEIGHT: f32 = 1080f32;
 const SETTLEMENT_NUMBER_OF_LEVELS: usize = 13;
 const SETTLEMENT_TEXTURE_FORMAT: &str = ".png";
 
+const TILE_OWNER_CHANGE_PRICE: i32 = 5000;
+
 struct BitterBoundaries {
     view: Rectangle,
     resolution_width: f32,
@@ -134,12 +136,6 @@ impl State for BitterBoundaries {
 
         for i in 0..GAME_AREA_WIDTH {
             for j in 0..GAME_AREA_HEIGHT {
-                if window.mouse()[MouseButton::Right] == ButtonState::Pressed
-                    && self.mouse_click_areas[i][j].contains(window.mouse().pos())
-                {
-                    self.tile_owned_by[i][j] = !self.tile_owned_by[i][j];
-                }
-
                 if window.mouse()[MouseButton::Left] == ButtonState::Pressed
                     && self.mouse_click_areas[i][j].contains(window.mouse().pos())
                 {
@@ -162,17 +158,23 @@ impl State for BitterBoundaries {
                                 Ok(())
                             })?;
                         }
-                    } else {
+                    } else if tile_utility::has_adjacent_friendly_tile(
+                        &self.tile_owned_by,
+                        i as i32,
+                        j as i32,
+                        GAME_AREA_WIDTH,
+                        GAME_AREA_HEIGHT,
+                        0,
+                    ) {
                         let closest_settlement = tile_utility::closest_player_settlement(
-                            &self.tile_population_number,
+                            &self.tile_owned_by,
                             i as i32,
                             j as i32,
                             GAME_AREA_WIDTH,
                             GAME_AREA_HEIGHT,
+                            0,
                         );
-                        if self.tile_population_number[i][j]
-                            > 1000 * (self.tile_improvement_level[i][j] + 1)
-                        {
+                        if self.tile_population_number[i][j] > 100 {
                             self.tile_population_number[i][j] -=
                                 100 * (self.tile_improvement_level[i][j] + 1);
                             self.tile_population_number[closest_settlement.x]
@@ -183,8 +185,8 @@ impl State for BitterBoundaries {
                                     self.tile_population_number[i][j],
                                 );
                         } else {
-                            if self.players_cash[0] >= 10000 {
-                                self.players_cash[0] -= 10000;
+                            if self.players_cash[0] >= TILE_OWNER_CHANGE_PRICE {
+                                self.players_cash[0] -= TILE_OWNER_CHANGE_PRICE;
                                 self.tile_owned_by[i][j] = 0;
                                 self.sound_change.execute(|sound| {
                                     sound.play()?;
@@ -229,6 +231,7 @@ impl State for BitterBoundaries {
                 random_row as i32,
                 GAME_AREA_WIDTH,
                 GAME_AREA_HEIGHT,
+                1,
             );
             if self.tile_population_number[random_column][random_row]
                 > 1000 * (self.tile_improvement_level[random_column][random_row] + 1)
@@ -242,8 +245,8 @@ impl State for BitterBoundaries {
                         self.tile_population_number[random_column][random_row],
                     );
             } else {
-                if self.players_cash[1] >= 10000 {
-                    self.players_cash[1] -= 10000;
+                if self.players_cash[1] >= TILE_OWNER_CHANGE_PRICE {
+                    self.players_cash[1] -= TILE_OWNER_CHANGE_PRICE;
                     self.tile_owned_by[random_column][random_row] = 1;
                     self.sound_change.execute(|sound| {
                         sound.play()?;
