@@ -13,10 +13,7 @@ pub fn closest_player_settlement(
     game_area_height: usize,
     player_id: i32,
 ) -> TileCoordinates {
-    let mut closest_player_tile: TileCoordinates = TileCoordinates {
-        x: game_area_width,
-        y: game_area_height,
-    };
+    let mut closest_player_tile: TileCoordinates = TileCoordinates { x: 0, y: 0 };
     let mut x_start: usize = enemy_tile_x as usize;
     let mut x_end: usize = enemy_tile_x as usize;
     let mut y_start: usize = enemy_tile_y as usize;
@@ -43,8 +40,7 @@ pub fn closest_player_settlement(
 
     for i in x_start..x_end + 1 {
         for j in y_start..y_end + 1 {
-            if i != enemy_tile_x as usize
-                && j != enemy_tile_y as usize
+            if !(i == enemy_tile_x as usize && j == enemy_tile_y as usize)
                 && tile_owned_by[i][j] == player_id
             {
                 let new_x_distance: f32 = (enemy_tile_x as f32 - i as f32).abs();
@@ -58,7 +54,6 @@ pub fn closest_player_settlement(
             }
         }
     }
-
     return closest_player_tile;
 }
 
