@@ -1,11 +1,11 @@
-use std::f32;
+// use std::f32;
 
-pub struct TileCoordinates {
+/* pub struct TileCoordinates {
     pub x: usize,
     pub y: usize,
-}
+} */
 
-pub fn closest_player_settlement(
+/* pub fn closest_player_settlement(
     tile_owned_by: &Vec<Vec<i32>>,
     enemy_tile_x: i32,
     enemy_tile_y: i32,
@@ -55,7 +55,7 @@ pub fn closest_player_settlement(
         }
     }
     return closest_player_tile;
-}
+} */
 
 pub fn has_adjacent_friendly_tile(
     tile_owned_by: &Vec<Vec<i32>>,

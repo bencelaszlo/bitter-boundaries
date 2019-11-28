@@ -76,6 +76,6 @@ pub fn get_total_population(
     return total_population;
 }
 
-pub fn get_cash(total_population: i32) -> i32 {
-    return 4 * get_level_of_settlement(total_population) + 1;
+pub fn get_cash(total_population: i32) -> f64 {
+    return 4.0 * (get_level_of_settlement(total_population) + 1) as f64;
 }

@@ -29,9 +29,9 @@ const VIEW_HEIGHT: usize = 810;
 const SETTLEMENT_NUMBER_OF_LEVELS: usize = 13;
 const SETTLEMENT_TEXTURE_FORMAT: &str = ".png";
 
-const TILE_OWNER_CHANGE_PRICE: i32 = 5000;
-const TILE_IMPROVEMENT_BASE_COST: i32 = 1000;
-const TILE_POPULATION_CHANGE_BASE: i32 = 100;
+const TILE_OWNER_CHANGE_PRICE: f64 = 1500.0;
+const TILE_IMPROVEMENT_BASE_COST: f64 = 1000.0;
+const TILE_POPULATION_CHANGE_BASE: f64 = 100.0;
 
 struct BitterBoundaries {
     view: Rectangle,
@@ -43,10 +43,10 @@ struct BitterBoundaries {
     mouse_click_areas: Vec<Vec<Rectangle>>,
     menu_click_areas: Vec<Rectangle>,
     tile_owned_by: Vec<Vec<i32>>,
-    tile_improvement_cost: Vec<Vec<i32>>,
+    tile_improvement_cost: Vec<Vec<f64>>,
     tile_improvement_level: Vec<Vec<i32>>,
     tile_population_number: Vec<Vec<i32>>,
-    players_cash: [i32; 2],
+    players_cash: [f64; 2],
     players_background_sprite: [Asset<Image>; 2],
     new_game_button_sprite: Asset<Image>,
     exit_button_sprite: Asset<Image>,
@@ -69,7 +69,7 @@ impl State for BitterBoundaries {
         let back_to_main_menu_button: Asset<Image> =
             Asset::new(Image::load("sprites/gui/back_to_main_menu_button.png"));
 
-        let players_cash: [i32; 2] = [0, 0];
+        let players_cash: [f64; 2] = [0.0, 0.0];
         let mut settlement_sprites = Vec::new();
         let mut menu_click_areas = Vec::new();
         let players_background_sprite: [Asset<Image>; 2] = [
@@ -174,6 +174,10 @@ impl State for BitterBoundaries {
                             GAME_AREA_HEIGHT,
                         ));
 
+                    if i == 1 {
+                        self.players_cash[i] /= 1.00375;
+                    }
+
                     if tile_utility::is_player_wins(
                         &self.tile_owned_by,
                         GAME_AREA_WIDTH,
@@ -187,20 +191,22 @@ impl State for BitterBoundaries {
 
                 for i in 0..GAME_AREA_WIDTH {
                     for j in 0..GAME_AREA_HEIGHT {
+                        self.tile_improvement_level[i][j] =
+                            population_utility::get_level_of_settlement(
+                                self.tile_population_number[i][j],
+                            );
+                        self.tile_improvement_cost[i][j] = TILE_IMPROVEMENT_BASE_COST
+                            * (self.tile_improvement_level[i][j] + 1) as f64;
+
                         if window.mouse()[MouseButton::Left] == ButtonState::Pressed
                             && self.mouse_click_areas[i][j].contains(window.mouse().pos())
                         {
                             if self.tile_owned_by[i][j] == 0 {
                                 if self.players_cash[0] >= self.tile_improvement_cost[i][j] {
                                     self.players_cash[0] -= self.tile_improvement_cost[i][j];
-                                    self.tile_improvement_cost[i][j] = TILE_IMPROVEMENT_BASE_COST
-                                        * (self.tile_improvement_level[i][j] + 1);
                                     self.tile_population_number[i][j] += TILE_POPULATION_CHANGE_BASE
+                                        as i32
                                         * (self.tile_improvement_level[i][j] + 1);
-                                    self.tile_improvement_level[i][j] =
-                                        population_utility::get_level_of_settlement(
-                                            self.tile_population_number[i][j],
-                                        );
                                     self.sound_click.execute(|sound| {
                                         sound.play()?;
                                         Ok(())
@@ -219,43 +225,24 @@ impl State for BitterBoundaries {
                                 GAME_AREA_HEIGHT,
                                 0,
                             ) {
-                                let closest_settlement = tile_utility::closest_player_settlement(
-                                    &self.tile_owned_by,
-                                    i as i32,
-                                    j as i32,
-                                    GAME_AREA_WIDTH,
-                                    GAME_AREA_HEIGHT,
-                                    0,
-                                );
-                                if self.tile_population_number[i][j]
-                                    >= TILE_POPULATION_CHANGE_BASE
-                                        * (self.tile_improvement_level[i][j] + 1)
+                                if self.players_cash[0]
+                                    >= TILE_OWNER_CHANGE_PRICE
+                                        * (self.tile_improvement_level[i][j] + 1) as f64
                                 {
+                                    self.players_cash[0] -= TILE_OWNER_CHANGE_PRICE
+                                        * (self.tile_improvement_level[i][j] + 1) as f64;
                                     self.tile_population_number[i][j] -= TILE_POPULATION_CHANGE_BASE
+                                        as i32
                                         * (self.tile_improvement_level[i][j] + 1);
-                                    self.tile_population_number[closest_settlement.x]
-                                        [closest_settlement.y] -= TILE_POPULATION_CHANGE_BASE
-                                        * (self.tile_improvement_level[i][j] + 1);
-                                    self.tile_improvement_level[i][j] =
-                                        population_utility::get_level_of_settlement(
-                                            self.tile_population_number[i][j],
-                                        );
-                                    self.tile_improvement_cost[i][j] = TILE_IMPROVEMENT_BASE_COST
-                                        * (self.tile_improvement_level[i][j] + 1);
-                                } else {
-                                    if self.players_cash[0] >= TILE_OWNER_CHANGE_PRICE {
-                                        self.players_cash[0] -= TILE_OWNER_CHANGE_PRICE;
+                                    if self.tile_population_number[i][j] < 0 {
                                         self.tile_owned_by[i][j] = 0;
-                                        self.sound_change.execute(|sound| {
-                                            sound.play()?;
-                                            Ok(())
-                                        })?;
-                                    } else {
-                                        self.sound_unable.execute(|sound| {
-                                            sound.play()?;
-                                            Ok(())
-                                        })?;
+                                        self.tile_population_number[i][j] = 1;
                                     }
+                                } else {
+                                    self.sound_change.execute(|sound| {
+                                        sound.play()?;
+                                        Ok(())
+                                    })?;
                                 }
                             }
                         }
@@ -268,56 +255,42 @@ impl State for BitterBoundaries {
                 if self.tile_owned_by[random_column][random_row] == 1 {
                     if self.players_cash[1]
                         >= TILE_IMPROVEMENT_BASE_COST
-                            * (self.tile_improvement_level[random_column][random_row] + 1)
+                            * (self.tile_improvement_level[random_column][random_row] + 1) as f64
                     {
                         self.players_cash[1] -= TILE_IMPROVEMENT_BASE_COST
-                            * (self.tile_improvement_level[random_column][random_row] + 1);
+                            * (self.tile_improvement_level[random_column][random_row] + 1) as f64;
                         self.tile_population_number[random_column][random_row] +=
-                            TILE_POPULATION_CHANGE_BASE
+                            TILE_POPULATION_CHANGE_BASE as i32
                                 * (self.tile_improvement_level[random_column][random_row] + 1);
-                        self.tile_improvement_level[random_column][random_row] =
-                            population_utility::get_level_of_settlement(
-                                self.tile_population_number[random_column][random_row],
-                            );
                         self.sound_click.execute(|sound| {
                             sound.play()?;
                             Ok(())
                         })?;
                     }
                 } else {
-                    let closest_settlement = tile_utility::closest_player_settlement(
+                    if tile_utility::has_adjacent_friendly_tile(
                         &self.tile_owned_by,
                         random_column as i32,
                         random_row as i32,
                         GAME_AREA_WIDTH,
                         GAME_AREA_HEIGHT,
                         1,
-                    );
-                    if self.tile_population_number[random_column][random_row]
-                        > TILE_POPULATION_CHANGE_BASE
-                            * (self.tile_improvement_level[random_column][random_row] + 1)
-                    {
-                        self.tile_population_number[random_column][random_row] -=
-                            TILE_POPULATION_CHANGE_BASE
-                                * (self.tile_improvement_level[random_column][random_row] + 1);
-                        self.tile_population_number[closest_settlement.x][closest_settlement.y] -=
-                            TILE_POPULATION_CHANGE_BASE
-                                * (self.tile_improvement_level[random_column][random_row] + 1);
-                        self.tile_improvement_level[random_column][random_row] =
-                            population_utility::get_level_of_settlement(
-                                self.tile_population_number[random_column][random_row],
-                            );
-                        self.tile_improvement_cost[random_column][random_row] =
-                            TILE_IMPROVEMENT_BASE_COST
-                                * (self.tile_improvement_level[random_column][random_row] + 1);
-                    } else {
-                        if self.players_cash[1] >= TILE_OWNER_CHANGE_PRICE {
-                            self.players_cash[1] -= TILE_OWNER_CHANGE_PRICE;
-                            self.tile_owned_by[random_column][random_row] = 1;
-                            self.sound_change.execute(|sound| {
-                                sound.play()?;
-                                Ok(())
-                            })?;
+                    ) {
+                        if self.players_cash[1]
+                            >= TILE_OWNER_CHANGE_PRICE
+                                * (self.tile_improvement_level[random_column][random_row] + 1)
+                                    as f64
+                        {
+                            self.players_cash[1] -= TILE_OWNER_CHANGE_PRICE
+                                * (self.tile_improvement_level[random_column][random_row] + 1)
+                                    as f64;
+                            self.tile_population_number[random_column][random_row] -=
+                                TILE_POPULATION_CHANGE_BASE as i32
+                                    * (self.tile_improvement_level[random_column][random_row] + 1);
+                            if self.tile_population_number[random_column][random_row] < 0 {
+                                self.tile_owned_by[random_column][random_row] = 1;
+                                self.tile_population_number[random_column][random_row] = 1;
+                            }
                         }
                     }
                 }
@@ -424,8 +397,13 @@ impl State for BitterBoundaries {
                             population_utility::get_type_of_settlement(
                                 self.tile_population_number[i][j],
                             );
-                        let improvement_cost_string: String =
+                        let mut improvement_cost_string: String =
                             self.tile_improvement_cost[i][j].to_string();
+                        if self.tile_owned_by[i][j] == 1 {
+                            improvement_cost_string = (TILE_OWNER_CHANGE_PRICE
+                                * (self.tile_improvement_level[i][j] + 1) as f64)
+                                .to_string();
+                        }
 
                         let mut population_number_text: Asset<Image> = Asset::new(
                             Font::load("fonts/FiraCode-Regular.ttf").and_then(move |font| {
